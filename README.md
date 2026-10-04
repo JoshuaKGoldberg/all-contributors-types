@@ -25,15 +25,59 @@ npm i all-contributors-types
 ```
 
 ```ts
-import { greet } from "all-contributors-types";
+import {
+	contributionTypes,
+	createContributionLink,
+	isContributionTypeName,
+} from "all-contributors-types";
 
-greet("Hello, world! 💖");
+contributionTypes.bug;
+// { description: "Bug reports", link: "issues", symbol: "🐛" }
+
+createContributionLink("bug", {
+	login: "JoshuaKGoldberg",
+	projectName: "all-contributors-types",
+	projectOwner: "JoshuaKGoldberg",
+});
+// "https://github.com/JoshuaKGoldberg/all-contributors-types/issues?q=author%3AJoshuaKGoldberg"
+
+isContributionTypeName("bug"); // true
+isContributionTypeName("other"); // false
 ```
+
+The data and links are kept in sync with [`all-contributors-cli`](https://github.com/all-contributors/cli)'s [emoji key](https://allcontributors.org/docs/en/emoji-key).
+
+### `contributionTypes`
+
+Each contribution type, keyed by name, with:
+
+- `description`: human-readable description, such as `"Bug reports"`
+- `link` _(optional)_: which kind of repository page it links to: `"commits"`, `"issues"`, or `"reviews"`
+- `symbol`: emoji, such as `"🐛"`
+
+The `ContributionTypeName` type is a union of all contribution type names.
+
+### `createContributionLink`
+
+Creates the URL a contribution links to in an All Contributors README table, the same as `all-contributors generate`.
+Contribution types without a `link` get a `#type-login` anchor.
+
+Options:
+
+- `login` _(optional)_: username of the contributor
+- `projectName`: name of the repository
+- `projectOwner`: owner of the repository
+- `repoHost` _(optional)_: base URL of the repository host, if not the default for `repoType`
+- `repoType` _(optional)_: `"github"` _(default)_ or `"gitlab"`
+
+### `isContributionTypeName`
+
+Type guard for whether a string is a known `ContributionTypeName`.
 
 ## Development
 
 See [`.github/CONTRIBUTING.md`](./.github/CONTRIBUTING.md), then [`.github/DEVELOPMENT.md`](./.github/DEVELOPMENT.md).
-Thanks! 💖
+Thanks! 🔣
 
 ## Contributors
 

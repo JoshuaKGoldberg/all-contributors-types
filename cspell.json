@@ -8,5 +8,5 @@
 		"node_modules",
 		"pnpm-lock.yaml"
 	],
-	"words": ["apexskier", "eeef", "octoguide"]
+	"words": ["apexskier", "blogposts", "eeef", "octoguide"]
 }
