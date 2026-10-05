@@ -1,9 +1,4 @@
-import { template } from "./template.ts";
-
-export { template };
-
-export const { createConfig } = template;
-
-export * from "./base.ts";
-export * from "./blocks/index.ts";
-export * from "./presets/index.ts";
+export * from "./contributionTypes.ts";
+export * from "./createContributionLink.ts";
+export * from "./isContributionTypeName.ts";
+export * from "./types.ts";
