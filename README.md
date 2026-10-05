@@ -74,6 +74,11 @@ Options:
 
 Type guard for whether a string is a known `ContributionTypeName`.
 
+## Why?
+
+[all-contributors/cli#295 Expose contribution-types in separate package](https://www.npmjs.com/package/all-contributors-types) tracks a first-party package exposing these utilities and types.
+In the meantime, this package approximates what all-contributors does.
+
 ## Development
 
 See [`.github/CONTRIBUTING.md`](./.github/CONTRIBUTING.md), then [`.github/DEVELOPMENT.md`](./.github/DEVELOPMENT.md).
