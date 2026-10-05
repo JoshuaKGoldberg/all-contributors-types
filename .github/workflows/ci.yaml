@@ -1,18 +1,27 @@
 jobs:
+  are_the_types_wrong:
+    name: Are The Types Wrong?
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/prepare
+      - run: pnpm build
+      - run: npx --yes @arethetypeswrong/cli --pack . --ignore-rules cjs-resolves-to-esm --profile esm-only
+
   build:
     name: Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/prepare
       - run: pnpm build
-      - run: node ./dist/index.mjs
+      - run: node ./dist/index.mjs --version
 
   dedupe_check:
     name: Dedupe Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/prepare
       - run: pnpm dedupe --check
 
@@ -20,9 +29,9 @@ jobs:
     name: Engines Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/prepare
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           cache: pnpm
           node-version: 22.13.0
@@ -32,7 +41,7 @@ jobs:
     name: Format Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/prepare
       - run: pnpm format --list-different
 
@@ -40,15 +49,16 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/prepare
+      - run: pnpm build
       - run: pnpm lint
 
   lint_knip:
     name: Lint Knip
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/prepare
       - run: pnpm lint:knip
 
@@ -56,7 +66,7 @@ jobs:
     name: Lint Spelling
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/prepare
       - run: pnpm lint:spelling
 
@@ -64,17 +74,19 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/prepare
       - run: pnpm run test --coverage
-      - if: always()
+      - env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        if: always()
         uses: codecov/codecov-action@v3
 
   type_check:
     name: Type Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/prepare
       - run: pnpm tsc
 

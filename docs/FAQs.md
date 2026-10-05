@@ -1,0 +1,218 @@
+# FAQs
+
+## Do you have a guide to working with a `create-typescript-app` repository?
+
+Yes!
+See [Contributing to a create-typescript-app Repository](https://www.joshuakgoldberg.com/blog/contributing-to-a-create-typescript-app-repository).
+It'll walk you through the common activities you'll need to contribute to a repository scaffolded with `create-typescript-app`.
+
+## Can I use _(insert tool here)_ with this template?
+
+Yes!
+After you set up a repository, you can substitute in any tools you'd like.
+
+If you think the tool would be broadly useful to most consumers of this template, feel free to [file a feature request](https://github.com/JoshuaKGoldberg/create-typescript-app/issues/new?assignees=&labels=type%3A+feature&projects=&template=03-feature.yaml&title=%F0%9F%9A%80+Feature%3A+%3Cshort+description+of+the+feature%3E) to add it in.
+
+## Can I create a GitHub action?
+
+Yes!
+If you want to read the [GitHub Actions documentation](https://docs.github.com/en/actions/creating-actions) in detail.
+Here we'll outline the steps required to migrate a CTA app to a GitHub Action:
+
+1. GitHub Actions store built output on a GitHub branch rather than in a published package on npm.
+   As a consequence we should:
+   - delete `.github/workflows/release.yaml` and `.github/workflows/post-release.yaml`.
+   - update `.github/workflows/build.yaml` to ensure `dist` is up to date:
+
+     <details>
+         <summary><code>.github/workflows/build.yaml</code></summary>
+
+     ```yaml
+     jobs:
+       build:
+         permissions:
+           contents: read
+         runs-on: ubuntu-latest
+         steps:
+           - uses: actions/checkout@v4
+           - uses: ./.github/actions/prepare
+           - run: pnpm build
+
+           - name: Verify dist is up to date
+             run: |
+               changes=$(git status --porcelain --untracked-files=all --ignored -- dist ':!*.d.ts' ':!*.d.ts.map')
+               if [ -n "$changes" ]; then
+                 echo "$changes"
+                 echo "::error::dist/ is out of date. Run 'pnpm build', then commit the files listed above. Files marked !! are gitignored and need 'git add --force'."
+                 exit 1
+               fi
+
+     name: Build
+
+     on:
+       pull_request: ~
+       push:
+         branches:
+           - main
+     ```
+
+      </details>
+
+   - GitHub Actions run without installing package dependencies.
+     Replace `tsdown` with [`ncc`](https://github.com/vercel/ncc) to build source files and dependencies into a single JS file.
+     Delete `tsdown.config.ts` then execute the following commands:
+
+   ```bash
+   pnpm remove tsdown
+   pnpm add @vercel/ncc -D
+   ```
+
+   - Now we need to update the `build` script in our `package.json`:
+
+   ```diff
+   -"build": "tsdown",
+   +"build": "rm -rf dist && ncc build src/index.ts -o dist --license licenses.txt",
+   ```
+
+   - Our build now emits to the `dist` directory; so we'll want to avoid linting that directory by adding the following to `.eslintignore` and our `.prettierignore`:
+
+   ```diff
+   +dist
+   ```
+
+   - Rather than having to remember to compile each time, we'll update our pre-commit hook in `.husky/pre-commit` to build for us on each commit:
+
+   ```diff
+   +pnpm run build
+   +git add dist
+   npx lint-staged
+   ```
+
+1. Create an [`action.yaml` metadata file](https://docs.github.com/en/actions/creating-actions/creating-a-javascript-action#creating-an-action-metadata-file).
+
+It's worth reading the [GitHub Actions documentation](https://docs.github.com/en/actions/creating-actions/creating-a-javascript-action#writing-the-action-code).
+
+## How can I bundle build output?
+
+By default, `create-typescript-app` configures [tsdown](https://tsdown.dev) with [`unbundle: true`](https://tsdown.dev/options/unbundle): every file under `src/` is built to a matching file under `dist/`.
+That keeps output readable and lets consumers deep-import individual files, which suits the many small packages this template is used for.
+
+Pass `--bundle` to instead bundle everything reachable from `src/index.ts` into a single `dist/index.mjs`:
+
+```shell
+npx create-typescript-app --bundle
+```
+
+That emits a `tsdown.config.ts` with `src/index.ts` as the only entry and no `unbundle` setting, so tsdown uses its default bundled output.
+Dependencies are still left external; see [tsdown > Dependencies](https://tsdown.dev/options/dependencies) if you'd like to inline any.
+
+Re-running `create-typescript-app` in a repository keeps whatever the existing `tsdown.config.ts` does: bundling stays on unless it contains `unbundle: true`.
+To switch an existing repository back, add `unbundle: true` to its `tsdown.config.ts` and re-run `create-typescript-app`.
+
+## How can I add dual CommonJS / ECMAScript Modules emit?
+
+First, I'd suggest reading [TypeScript Handbook > Modules - Introduction](https://www.typescriptlang.org/docs/handbook/modules/introduction.html) to understand how CommonJS (CJS) and ECMAScript (ESM) came to be.
+
+Then:
+
+1. In `tsdown.config.ts`, set the [tsdown `format` option](https://tsdown.dev/options/output-format) to `["cjs", "esm"]`
+2. Add a [`package.json` `"exports"` entry](https://nodejs.org/api/packages.html#subpath-exports) like:
+
+   ```json package.json
+   {
+   	"exports": {
+   		".": {
+   			"types": {
+   				"import": "./dist/index.d.mts",
+   				"require": "./dist/index.d.cts"
+   			},
+   			"import": "./dist/index.mjs",
+   			"require": "./dist/index.cjs"
+   		}
+   	}
+   }
+   ```
+
+   Every path inside `"exports"` has to start with `./`.
+   Node.js refuses to load the package with an `ERR_INVALID_PACKAGE_TARGET` error otherwise.
+
+3. Add `package.json` `"main"`, `"module"`, and `"types"` entries pointing to the same files:
+
+   ```json package.json
+   {
+   	"main": "./dist/index.cjs",
+   	"module": "./dist/index.mjs",
+   	"types": "./dist/index.d.cts"
+   }
+   ```
+
+   `"exports"` is ignored by TypeScript's older `"moduleResolution": "node10"` and by other legacy resolvers.
+   Without these three entries they find nothing at all for the package.
+
+That should be it!
+
+To be safe, consider checking with [arethetypeswrong](https://arethetypeswrong.github.io):
+
+1. Run `pnpm build`
+2. Run `npm pack`
+3. Upload that generated `.tgz` file to [arethetypeswrong.github.io](https://arethetypeswrong.github.io)
+
+### Why doesn't `create-typescript-app` have an option to dual emit CJS and ESM?
+
+Dual CJS/ESM emit is a stopgap solution while the JavaScript ecosystem migrates towards full ESM support in most-to-all popular user packages.
+Most packages newly created with `create-typescript-app` should target just ESM by default.
+
+Some packages published with `create-typescript` legitimately need dual CJS/ESM output because they're used by frameworks that don't yet fully support ESM.
+That's reasonable.
+
+Unless you know a package needs to support a CJS consumer, please strongly consider keeping it ESM-only (the `create-typescript-app` default).
+ESM-only packages have a smaller footprint by virtue of including fewer files.
+
+## What about `eslint-config-prettier`?
+
+[`eslint-config-prettier`](https://github.com/prettier/eslint-config-prettier) is an ESLint plugin that serves only to turn off all rules that are unnecessary or might conflict with formatters such as Prettier.
+None of the ESLint configs enabled by this repository's tooling leave any rules enabled that would need to be disabled.
+Using `eslint-config-prettier` would be redundant.
+
+## What determines which preset a tool goes into?
+
+The four presets correspond to what have seemed to be the most common user needs of template consumers:
+
+1. **Minimal**: Developers who just want the barest of starting templates.
+   - They may be very new to TypeScript tooling, or they may have made an informed decision that the additional tooling isn't worth the complexity and/or time investment.
+   - Tooling in this preset is only what would be essential for a small TypeScript package that can be built, formatted, linted, and released.
+2. **Common**: The common case of users who want the minimal tooling along with common repository management.
+   - Tooling added in this preset should be essential for a TypeScript repository that additionally automates useful GitHub tasks: contributor recognition, release management, and testing.
+3. **Everything**: Power users (including this repository) who want as much of the latest and greatest safety checks and standardization as possible.
+
+Note that you can always customize exactly which preset you use per [CLI](./CLI.md).
+
+## Why does this package include so many tools?
+
+This repository is meant to serve as a starter that includes all the general tooling a modern TypeScript/Node repository could possibly need.
+Each of the included tools exists for a good reason and provides real value.
+
+If you don't want to use any particular tool, you can always remove it manually.
+
+## Why tabs?
+
+This repository template configures `useTabs: true` in the root-level `prettier.config.ts`.
+It does so because tabs have been phrased by the community as generally better for accessibility:
+
+- <https://github.com/11ty/eleventy/issues/3098>
+- <https://github.com/prettier/prettier/issues/7475>
+
+Note that those points on tabs over spaces have generally been made by accessibility-experienced _individuals_ rather than accessibility-focused _organizations_.
+If you know of any accessibility organization that's published more formal recommendations or research, please do file an issue here for this FAQ entry to be updated.
+
+You can adjust the tab size that GitHub uses to display files from your [account settings page](https://github.com/settings/appearance#tab-size-heading) (the default is 8 spaces).
+
+If you really want spaces in your project you can always remove the `"useTabs": true`.
+
+## How can I use `bin`?
+
+The `--bin` option allows you to create a `package.json` bin value to include for npx-style running.
+An example of this would be `"bin/index.js"`.
+A starter file will be created at that path that imports the built entry point; edit it to run your CLI.
+
+If you'd like an example of what that looks like, take a look at the [CTA source code](https://github.com/JoshuaKGoldberg/create-typescript-app/blob/e7fafcb8968f8f6c551ab0917c9a6a849a3cba28/bin/index.js)!
