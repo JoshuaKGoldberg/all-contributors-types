@@ -1,6 +1,6 @@
 {
 	"name": "all-contributors-types",
-	"version": "0.0.0",
+	"version": "0.1.0",
 	"description": "The contribution types supported by All Contributors, as data. 🔣",
 	"repository": {
 		"type": "git",
